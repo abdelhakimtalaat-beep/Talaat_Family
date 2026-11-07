@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+body { @apply bg-warm text-navy antialiased; }
+.card { @apply rounded-2xl border border-mist bg-white p-4 shadow-sm; }
