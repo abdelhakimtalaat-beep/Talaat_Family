@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession, allows } from "@/lib/session";
 
-type Result = { error: string } | void;
+type Result = { error: string } | undefined;
 
 async function requireUpdate() {
   const s = await getSession();
@@ -70,6 +70,7 @@ export async function replaceFile(id: string, fileId: string): Promise<Result> {
   const { error } = await s.supabase.rpc("replace_document_file", { p_document: id, p_new_file: fileId });
   if (error) return { error: "generic" };
   revalidatePath(`/documents/${id}`);
+  return undefined;
 }
 
 export async function archiveDocument(id: string): Promise<Result> {

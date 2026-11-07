@@ -3,7 +3,7 @@ import { useActionState } from "react";
 import { signIn } from "../actions";
 
 export default function LoginForm({ t }: { t: { email: string; password: string; submit: string; error: string } }) {
-  const [state, action, pending] = useActionState(signIn, null);
+  const [state, action, pending] = useActionState<{ error: boolean } | null, FormData>(signIn, null);
   const input = "w-full rounded-xl border border-mist bg-warm px-3 py-2 outline-none focus:border-gold";
   return (
     <form action={action} className="space-y-3">

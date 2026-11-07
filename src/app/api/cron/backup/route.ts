@@ -29,7 +29,8 @@ export async function GET(req: Request) {
     for (const { table, order } of BACKUP_TABLES) {
       const rows: unknown[] = [];
       for (let from = 0; ; from += PAGE) {
-        let q = db.from(table).select("*");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let q: any = db.from(table).select("*");
         for (const col of order) q = q.order(col);
         const { data, error } = await q.range(from, from + PAGE - 1);
         if (error) throw new Error(`${table}: ${error.message}`);

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function signIn(_: unknown, form: FormData) {
+export async function signIn(_: { error: boolean } | null, form: FormData): Promise<{ error: boolean } | null> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: String(form.get("email")),

@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 /** Server client: runs as the signed-in user, so RLS policies apply. */
@@ -10,7 +10,7 @@ export async function createClient() {
     {
       cookies: {
         getAll: () => store.getAll(),
-        setAll: (list) => {
+        setAll: (list: { name: string; value: string; options: CookieOptions }[]) => {
           try {
             list.forEach(({ name, value, options }) => store.set(name, value, options));
           } catch {
