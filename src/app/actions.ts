@@ -3,13 +3,22 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function signIn(_: { error: boolean } | null, form: FormData): Promise<{ error: boolean } | null> {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(form.get("email")),
-    password: String(form.get("password")),
-  });
-  if (error) return { error: true };
+export type SignInState = { error: boolean; detail?: string } | null;
+
+export async function signIn(_: SignInState, form: FormData): Promise<SignInState> {
+  let failure: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: String(form.get("email") ?? "").trim(),
+      password: String(form.get("password") ?? ""),
+    });
+    if (error) failure = error.code ?? error.message;
+  } catch (e) {
+    // e.g. wrong Supabase URL / key, or Supabase unreachable
+    failure = e instanceof Error ? e.message : "unknown";
+  }
+  if (failure) return { error: true, detail: failure.slice(0, 120) };
   redirect("/");
 }
 
