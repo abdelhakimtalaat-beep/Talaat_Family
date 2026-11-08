@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession, getT, getLocale, allows } from "@/lib/session";
+import { categoriesForScope } from "@/lib/villa-docs";
 import DocumentForm from "../DocumentForm";
 
 export default async function NewDocumentPage() {
@@ -9,7 +10,7 @@ export default async function NewDocumentPage() {
   const t = await getT();
   const locale = await getLocale();
   const [{ data: cats }, { data: members }] = await Promise.all([
-    s.supabase.from("document_categories").select("id,name_ar,name_en").order("id"),
+    s.supabase.from("document_categories").select("id,slug,name_ar,name_en").order("id"),
     s.supabase.from("family_members").select("id,full_name").order("full_name"),
   ]);
   return (
@@ -17,7 +18,8 @@ export default async function NewDocumentPage() {
       <h1 className="text-2xl font-bold">{t.docs.add}</h1>
       <DocumentForm
         t={t.docs}
-        categories={(cats ?? []).map((c) => ({ id: c.id, label: locale === "ar" ? c.name_ar : c.name_en }))}
+        scope="family"
+        categories={categoriesForScope(cats ?? [], "family").map((c) => ({ id: c.id, slug: c.slug, label: locale === "ar" ? c.name_ar : c.name_en }))}
         members={(members ?? []).map((m) => ({ id: m.id, label: m.full_name }))}
       />
     </div>

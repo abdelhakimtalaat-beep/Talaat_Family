@@ -67,6 +67,14 @@ Screens under `/documents`: list with search (title, number, authority), filters
 
 Not done yet: email reminders for expiring documents (comes with the Calendar and Reminders phase) and import of existing files in bulk.
 
+## Villa documents
+
+Run `supabase/migrations/0007_villa_documents.sql`, then in the app open **Settings > إنشاء/فحص المجلدات** once so the new Drive folders (`Villa/Documents`, `Villa/Drawings`) are created.
+
+The **Villa Management** page has an upload button, quick buttons (contract, handover report, license, architectural drawing, structural drawing) and lists the documents grouped by type, each with a download link. Villa documents live in the same `documents` table with `scope = 'villa'`, so they get preview, version history and expiry reminders, but access follows the **Villa** permission rather than the family-archive permission. They do not appear in the Family Archive list.
+
+`0007` was applied together with `0001`-`0006` on a throwaway PostgreSQL 16 and tested with an admin, a resident and a relative: residents can add villa documents but not family documents, sensitive documents stay hidden, a relative sees nothing, expense shares must add up, expenses cannot be deleted, and the resident ledger gives the expected balances. That test found and fixed one leak (resident names visible through the balances view), included in `0007`. Supabase's own `auth` schema was replaced by a small stand-in for the test, so Supabase-specific behaviour is still untested.
+
 ## Keep-alive and backups
 
 Run `supabase/migrations/0006_backup_status.sql`. Set `CRON_SECRET` (random, 16+ characters) in Vercel. `vercel.json` then schedules two jobs; Vercel sends the secret itself and the routes reject any other caller.

@@ -16,6 +16,13 @@ export const dict = {
       balances: "الأرصدة بين المقيمين", owed: "له", owes: "عليه", settled: "مسوّى",
       none: "لا يوجد", currency: "ج.م",
     },
+    villa: {
+      docsTitle: "مستندات الفيلا", upload: "رفع مستند للفيلا", quickTitle: "رفع سريع", newTitle: "مستند جديد للفيلا",
+      quick: { contract: "عقد", handover: "محضر استلام", license: "ترخيص", arch: "مخطط معماري", struct: "مخطط إنشائي" },
+      groups: { legal: "العقود والوثائق القانونية", handoverLicense: "محضر الاستلام والتراخيص", drawings: "المخططات الهندسية", other: "مستندات أخرى" },
+      empty: "لا توجد مستندات في هذا القسم بعد.", download: "تنزيل",
+      soon: "معلومات الفيلا والمساحات وتوثيق الصور تأتي في المرحلة 4.",
+    },
     docs: {
       add: "إضافة مستند", search: "بحث بالاسم أو الرقم أو الجهة", allCategories: "كل الفئات", allMembers: "كل الأشخاص",
       from: "من تاريخ", to: "إلى تاريخ", filter: "تصفية", reset: "إعادة ضبط",
@@ -67,6 +74,13 @@ export const dict = {
       balances: "Balances between residents", owed: "is owed", owes: "owes", settled: "Settled",
       none: "None", currency: "EGP",
     },
+    villa: {
+      docsTitle: "Villa documents", upload: "Upload villa document", quickTitle: "Quick upload", newTitle: "New villa document",
+      quick: { contract: "Contract", handover: "Handover report", license: "License", arch: "Architectural drawing", struct: "Structural drawing" },
+      groups: { legal: "Contracts & legal documents", handoverLicense: "Handover report & licenses", drawings: "Engineering drawings", other: "Other documents" },
+      empty: "No documents in this section yet.", download: "Download",
+      soon: "Villa information, spaces and photo documentation arrive in Phase 4.",
+    },
     docs: {
       add: "Add document", search: "Search by title, number or authority", allCategories: "All categories", allMembers: "All people",
       from: "From date", to: "To date", filter: "Filter", reset: "Reset",
@@ -107,3 +121,4 @@ export type Dict = (typeof dict)["ar"];
 /** Widens literal string types so Arabic and English dictionaries are assignable to the same prop type. */
 export type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
 export type DocsT = Widen<(typeof dict)["ar"]["docs"]>;
+export type VillaT = Widen<(typeof dict)["ar"]["villa"]>;

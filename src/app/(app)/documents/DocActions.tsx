@@ -7,7 +7,7 @@ import { archiveDocument, replaceFile } from "./actions";
 
 const btn = "rounded-xl border border-navy px-3 py-1.5 text-sm hover:bg-beige disabled:opacity-60";
 
-export function ReplaceFile({ id, t }: { id: string; t: DocsT }) {
+export function ReplaceFile({ id, t, folder = "documents" }: { id: string; t: DocsT; folder?: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const router = useRouter();
@@ -17,7 +17,7 @@ export function ReplaceFile({ id, t }: { id: string; t: DocsT }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setErr(null); setBusy(true);
-    const up = await uploadToDrive(file, "documents");
+    const up = await uploadToDrive(file, folder);
     if (!up.ok) { setErr(errors[up.error] ?? errors.generic); setBusy(false); return; }
     const res = await replaceFile(id, up.fileId);
     if (res?.error) setErr(errors[res.error] ?? errors.generic);
@@ -36,7 +36,7 @@ export function ReplaceFile({ id, t }: { id: string; t: DocsT }) {
   );
 }
 
-export function ArchiveButton({ id, t }: { id: string; t: DocsT }) {
+export function ArchiveButton({ id, t, backTo = "/documents" }: { id: string; t: DocsT; backTo?: string }) {
   const [confirm, setConfirm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   return (
@@ -45,7 +45,7 @@ export function ArchiveButton({ id, t }: { id: string; t: DocsT }) {
         className={btn}
         onClick={async () => {
           if (!confirm) { setConfirm(true); return; }
-          const res = await archiveDocument(id);
+          const res = await archiveDocument(id, backTo);
           if (res?.error) setErr((t.errors as Record<string, string>)[res.error] ?? t.errors.generic);
         }}
       >

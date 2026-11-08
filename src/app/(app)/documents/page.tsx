@@ -21,6 +21,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
     .from("documents")
     .select("id,title,expiry_date,remind_days,document_number,is_sensitive,created_at,category:document_categories(name_ar,name_en),member:family_members(full_name)")
     .is("archived_at", null)
+    .eq("scope", "family") // villa documents are listed on the Villa Management page
     .limit(200);
 
   const q = sanitizeSearch(sp.q ?? "");

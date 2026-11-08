@@ -22,6 +22,8 @@ export const FOLDER_TREE: { key: string; name: string; parent?: string }[] = [
   { key: "villa_maintenance", name: "Maintenance", parent: "villa" },
   { key: "villa_renovation", name: "Renovation", parent: "villa" },
   { key: "villa_receipts", name: "Receipts", parent: "villa" },
+  { key: "villa_documents", name: "Documents", parent: "villa" },
+  { key: "villa_drawings", name: "Drawings", parent: "villa" },
   { key: "backups", name: "Backups", parent: "root" },
 ];
 
@@ -31,6 +33,8 @@ export const UPLOAD_TARGETS: Record<string, Module[]> = {
   photos: ["photos"],
   events: ["photos", "calendar"],
   albums: ["photos"],
+  villa_documents: ["villa"],
+  villa_drawings: ["villa"],
   villa_exterior: ["villa"],
   villa_interior: ["villa"],
   villa_maintenance: ["maintenance", "villa"],

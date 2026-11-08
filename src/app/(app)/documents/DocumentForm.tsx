@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
 import { uploadToDrive } from "@/lib/google/upload-client";
+import { folderFor, type DocScope } from "@/lib/villa-docs";
 import type { DocsT } from "@/lib/i18n";
 import { createDocument, updateDocument } from "./actions";
 
-type Opt = { id: string | number; label: string };
+type Opt = { id: string | number; label: string; slug?: string };
 export type DocValues = {
   id: string; title: string; category_id: number; member_id: string | null; document_number: string | null;
   issue_date: string | null; expiry_date: string | null; issuing_authority: string | null; notes: string | null;
@@ -13,7 +14,11 @@ export type DocValues = {
 
 const input = "w-full rounded-xl border border-mist bg-warm px-3 py-2 outline-none focus:border-gold";
 
-export default function DocumentForm({ t, categories, members, doc }: { t: DocsT; categories: Opt[]; members: Opt[]; doc?: DocValues }) {
+export default function DocumentForm({
+  t, categories, members, doc, scope = "family", defaultCategoryId,
+}: {
+  t: DocsT; categories: Opt[]; members: Opt[]; doc?: DocValues; scope?: DocScope; defaultCategoryId?: number;
+}) {
   const [busy, setBusy] = useState(false);
   const [pct, setPct] = useState(0);
   const [err, setErr] = useState<string | null>(null);
@@ -28,10 +33,12 @@ export default function DocumentForm({ t, categories, members, doc }: { t: DocsT
     setBusy(true);
     if (!doc) {
       if (!file || file.size === 0) { setErr(t.fileRequired); setBusy(false); return; }
-      const up = await uploadToDrive(file, "documents", setPct);
+      const slug = categories.find((c) => String(c.id) === String(fd.get("category_id")))?.slug;
+      const up = await uploadToDrive(file, folderFor(scope, slug), setPct);
       if (!up.ok) { setErr(errors[up.error] ?? errors.generic); setBusy(false); return; }
       fd.set("file_id", up.fileId);
     }
+    fd.set("scope", scope);
     const res = doc ? await updateDocument(doc.id, fd) : await createDocument(fd);
     // On success the action redirects; we only get here with an error.
     if (res?.error) { setErr(errors[res.error] ?? errors.generic); setBusy(false); }
@@ -44,7 +51,7 @@ export default function DocumentForm({ t, categories, members, doc }: { t: DocsT
         <input name="title" required defaultValue={doc?.title} className={input} />
       </label>
       <label className={label}>{t.category}
-        <select name="category_id" required defaultValue={doc?.category_id ?? ""} className={input}>
+        <select name="category_id" required defaultValue={doc?.category_id ?? defaultCategoryId ?? ""} className={input}>
           <option value="" disabled>—</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>

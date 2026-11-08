@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession, getT, getLocale, allows } from "@/lib/session";
 import { expiryState } from "@/lib/documents";
+import { folderFor } from "@/lib/villa-docs";
 import { ArchiveButton, ReplaceFile } from "../DocActions";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,7 +14,8 @@ export default async function DocumentDetail({ params }: { params: Promise<{ id:
   if (!UUID.test(id)) notFound();
   const s = await getSession();
   if (!s) redirect("/login");
-  if (!allows(s.levels.documents, "view")) redirect("/");
+  // Either module may open this page; the database decides which documents each user can actually see.
+  if (!allows(s.levels.documents, "view") && !allows(s.levels.villa, "view")) redirect("/");
   const t = await getT();
   const locale = await getLocale();
   const d = t.docs;
@@ -21,7 +23,7 @@ export default async function DocumentDetail({ params }: { params: Promise<{ id:
   // Row Level Security hides sensitive documents the user may not see: they simply come back empty.
   const { data: doc } = await s.supabase
     .from("documents")
-    .select("*, category:document_categories(name_ar,name_en), member:family_members(full_name), file:google_drive_files!documents_file_id_fkey(id,name,mime_type,size_bytes), uploader:profiles!documents_uploaded_by_fkey(full_name)")
+    .select("*, category:document_categories(slug,name_ar,name_en), member:family_members(full_name), file:google_drive_files!documents_file_id_fkey(id,name,mime_type,size_bytes), uploader:profiles!documents_uploaded_by_fkey(full_name)")
     .eq("id", id).is("archived_at", null).maybeSingle();
   if (!doc) notFound();
 
@@ -30,7 +32,10 @@ export default async function DocumentDetail({ params }: { params: Promise<{ id:
     .select("id,version,created_at,file:google_drive_files(id,name)")
     .eq("document_id", id).order("version", { ascending: false });
 
-  const canEdit = allows(s.levels.documents, "update");
+  const isVilla = doc.scope === "villa";
+  const canEdit = allows(s.levels[isVilla ? "villa" : "documents"], "update");
+  const backHref = isVilla ? "/villa" : "/documents";
+  const uploadFolder = folderFor(isVilla ? "villa" : "family", doc.category?.slug);
   const today = new Date().toISOString().slice(0, 10);
   const st = expiryState(doc.expiry_date, today, doc.remind_days);
   const mime: string = doc.file?.mime_type ?? "";
@@ -51,7 +56,7 @@ export default async function DocumentDetail({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-4">
-      <Link href="/documents" className="text-sm underline">{d.back}</Link>
+      <Link href={backHref} className="text-sm underline">{d.back}</Link>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold">{doc.title}{doc.is_sensitive && " 🔒"}</h1>
         <span className={`rounded-full px-2 py-0.5 text-xs ${badge[st]}`}>{d.state[st]}</span>
@@ -68,8 +73,8 @@ export default async function DocumentDetail({ params }: { params: Promise<{ id:
           <div className="flex flex-wrap gap-2 border-t border-mist pt-3">
             {src && <a href={`${src}?download=1`} className="rounded-xl bg-navy px-3 py-1.5 text-sm text-beige">{d.download}</a>}
             {canEdit && <Link href={`/documents/${id}/edit`} className="rounded-xl border border-navy px-3 py-1.5 text-sm hover:bg-beige">{d.edit}</Link>}
-            {canEdit && <ReplaceFile id={id} t={d} />}
-            {canEdit && <ArchiveButton id={id} t={d} />}
+            {canEdit && <ReplaceFile id={id} t={d} folder={uploadFolder} />}
+            {canEdit && <ArchiveButton id={id} t={d} backTo={backHref} />}
           </div>
         </section>
 

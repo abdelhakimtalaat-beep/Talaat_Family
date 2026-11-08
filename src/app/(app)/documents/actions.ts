@@ -5,11 +5,18 @@ import { getSession, allows } from "@/lib/session";
 
 type Result = { error: string } | undefined;
 
-async function requireUpdate() {
+/** Family documents need "update" on documents; villa documents need "update" on villa. */
+async function requireUpdate(scope: "family" | "villa" | "any" = "any") {
   const s = await getSession();
-  if (!s || !allows(s.levels.documents, "update")) return null;
-  return s;
+  if (!s) return null;
+  const docs = allows(s.levels.documents, "update");
+  const villa = allows(s.levels.villa, "update");
+  const ok = scope === "family" ? docs : scope === "villa" ? villa : docs || villa;
+  return ok ? s : null;
 }
+// The database policies make the final decision on every query, whatever is checked here.
+
+const BACK_TARGETS = ["/documents", "/villa"];
 
 const str = (fd: FormData, k: string) => {
   const v = String(fd.get(k) ?? "").trim();
@@ -40,16 +47,18 @@ function fields(fd: FormData) {
 }
 
 export async function createDocument(fd: FormData): Promise<Result> {
-  const s = await requireUpdate();
+  const scope = fd.get("scope") === "villa" ? "villa" : "family";
+  const s = await requireUpdate(scope);
   if (!s) return { error: "forbidden" };
   const f = fields(fd);
   const fileId = str(fd, "file_id");
   if (!f || !fileId) return { error: "invalid" };
   const { data, error } = await s.supabase.from("documents")
-    .insert({ ...f, file_id: fileId, uploaded_by: s.profile.id }).select("id").single();
+    .insert({ ...f, scope, file_id: fileId, uploaded_by: s.profile.id }).select("id").single();
   if (error) return { error: "generic" };
   revalidatePath("/documents");
-  redirect(`/documents/${data.id}`);
+  revalidatePath("/villa");
+  redirect(scope === "villa" ? "/villa" : `/documents/${data.id}`);
 }
 
 export async function updateDocument(id: string, fd: FormData): Promise<Result> {
@@ -57,10 +66,11 @@ export async function updateDocument(id: string, fd: FormData): Promise<Result> 
   if (!s) return { error: "forbidden" };
   const f = fields(fd);
   if (!f) return { error: "invalid" };
-  // The change (old and new values) is recorded by the audit trigger.
+  // The change (old and new values) is recorded by the audit trigger. `scope` is never changed here.
   const { error } = await s.supabase.from("documents").update(f).eq("id", id);
   if (error) return { error: "generic" };
   revalidatePath("/documents");
+  revalidatePath("/villa");
   redirect(`/documents/${id}`);
 }
 
@@ -73,11 +83,12 @@ export async function replaceFile(id: string, fileId: string): Promise<Result> {
   return undefined;
 }
 
-export async function archiveDocument(id: string): Promise<Result> {
+export async function archiveDocument(id: string, backTo: string = "/documents"): Promise<Result> {
   const s = await requireUpdate();
   if (!s) return { error: "forbidden" };
   const { error } = await s.supabase.from("documents").update({ archived_at: new Date().toISOString() }).eq("id", id);
   if (error) return { error: "generic" };
   revalidatePath("/documents");
-  redirect("/documents");
+  revalidatePath("/villa");
+  redirect(BACK_TARGETS.includes(backTo) ? backTo : "/documents");
 }
