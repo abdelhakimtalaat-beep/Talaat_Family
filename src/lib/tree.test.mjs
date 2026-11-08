@@ -26,4 +26,16 @@ assert.equal(validatePerson({ full_name: "x", birth_date: "2000-01-01", death_da
 assert.equal(validatePerson({ full_name: "x", birth_date: "2000-13-45" }).error, "bad_date");
 assert.equal(validatePerson({ full_name: "x", phone: "<script>" }).error, "bad_phone");
 assert.equal(validatePerson({ full_name: " س ", birth_date: "2000-01-01" }).value.full_name, "س");
+// spouses: b is married-in to "a"; c's spouse has a parent so is not married-in
+const sp = layout(people.concat([P("w","زوجة")]), edges, new Set(), [["a","w"]]);
+const sw = Object.fromEntries(sp.nodes.map((n) => [n.id, n]));
+assert.equal(sp.nodes.length, 7); assert.equal(sp.links.length, 1);
+assert.equal(sw.w.y, sw.a.y); assert.equal(sw.w.x - sw.a.x, BOX.w + 28);
+const e1 = sp.edges.find((e) => e.to === "a1"); assert.ok(Math.abs(e1.cx - (sw.a.x + (BOX.w * 2 + 28) / 2)) < 0.001);
+for (const y of new Set(sp.nodes.map((n) => n.y))) { const row = sp.nodes.filter((n) => n.y === y).sort((a, b) => a.x - b.x); for (let i = 1; i < row.length; i++) assert.ok(row[i].x - row[i-1].x >= BOX.w + 20); }
+// children added under the spouse are drawn under the couple
+const sp2 = layout(people.concat([P("w","زوجة")]), edges.map((e) => e.child === "a1" ? { ...e, parent: "w" } : e), new Set(), [["a","w"]]);
+assert.ok(sp2.edges.some((e) => e.from === "a" && e.to === "a1"));
+// married-in person is not a root
+assert.equal(sp.nodes.filter((n) => !n.spouseOf && n.y === 0).length, 1);
 console.log("tree tests ok");

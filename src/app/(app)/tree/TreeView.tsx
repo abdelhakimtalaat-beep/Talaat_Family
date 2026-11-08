@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { uploadToDrive } from "@/lib/google/upload-client";
 import type { TreeT } from "@/lib/i18n";
 import { BOX, ancestors, descendantsCount, layout, mapsLink, searchPeople, whatsappLink, type Edge, type Person } from "@/lib/tree";
-import { addParent, addPerson, deletePerson, setPhoto, updatePerson } from "./actions";
+import { addParent, addPerson, addSpouse, deletePerson, setPhoto, updatePerson } from "./actions";
 
 const input = "w-full rounded-xl border border-mist bg-warm px-3 py-2 outline-none focus:border-gold";
 const btn = "rounded-xl border border-mist px-3 py-1.5 text-sm hover:bg-mist";
@@ -36,8 +36,8 @@ function Avatar({ p, size }: { p: Person; size: number }) {
     : <span className="grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-mist to-beige font-bold text-navy ring-2 ring-white shadow" style={{ width: size, height: size }}>{p.full_name.trim().charAt(0)}</span>;
 }
 
-export default function TreeView({ t, locale, people, edges, canEdit, canDelete }: {
-  t: TreeT; locale: string; people: Person[]; edges: Edge[]; canEdit: boolean; canDelete: boolean;
+export default function TreeView({ t, locale, people, edges, spouses, canEdit, canDelete }: {
+  t: TreeT; locale: string; people: Person[]; edges: Edge[]; spouses: [string, string][]; canEdit: boolean; canDelete: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -55,7 +55,7 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null);
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
-  const L = useMemo(() => layout(people, edges, collapsed), [people, edges, collapsed]);
+  const L = useMemo(() => layout(people, edges, collapsed, spouses), [people, edges, collapsed, spouses]);
   const W = L.width + 40, H = L.height + 40;
   // The canvas is laid out left-to-right; for Arabic the horizontal order is mirrored.
   const px = (x: number) => (rtl ? L.width - x - BOX.w : x) + 20;
@@ -138,10 +138,20 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
             <svg width={W} height={H} className="pointer-events-none absolute inset-0">
               {L.edges.map((e) => {
                 const a = pos.get(e.from)!, b = pos.get(e.to)!;
-                const x1 = px(a.x) + BOX.w / 2, y1 = py(a.y) + BOX.h, x2 = px(b.x) + BOX.w / 2, y2 = py(b.y), ym = y1 + BOX.gapY / 2;
+                const x1 = (rtl ? L.width - e.cx : e.cx) + 20, y1 = py(a.y) + BOX.h, x2 = px(b.x) + BOX.w / 2, y2 = py(b.y), ym = y1 + BOX.gapY / 2;
                 return <path key={e.from + e.to} d={`M${x1} ${y1}C${x1} ${ym},${x2} ${ym},${x2} ${y2}`} fill="none" stroke="#c4a35a" strokeOpacity={0.55} strokeWidth={2} strokeLinecap="round" />;
               })}
             </svg>
+            {L.links.map((l) => {
+              const a = pos.get(l.a)!, b = pos.get(l.b)!;
+              const x1 = Math.min(px(a.x), px(b.x)) + BOX.w, x2 = Math.max(px(a.x), px(b.x)), y = py(a.y) + BOX.h / 2;
+              return (
+                <div key={l.a + l.b} className="absolute flex items-center justify-center" style={{ left: x1, top: y - 11, width: x2 - x1, height: 22 }}>
+                  <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-gold/60" />
+                  <span className="relative grid h-[22px] w-[22px] place-items-center rounded-full bg-white text-[11px] text-rose-500 shadow ring-1 ring-gold/50">♥</span>
+                </div>
+              );
+            })}
             {L.nodes.map((n) => {
               const p = byId.get(n.id); if (!p) return null;
               const on = sel === n.id;
@@ -172,7 +182,7 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
       </div>
 
       {person && (
-        <Panel key={person.id} t={t} errs={errs} p={person} byId={byId} edges={edges} canEdit={canEdit} canDelete={canDelete}
+        <Panel key={person.id} t={t} errs={errs} p={person} byId={byId} edges={edges} spouses={spouses} canEdit={canEdit} canDelete={canDelete}
           onClose={() => setSel(null)} onChanged={refresh} onSelect={setSel} />
       )}
     </div>
@@ -206,15 +216,16 @@ function NameForm({ t, errs, submit, onDone, onCancel }: {
   );
 }
 
-function Panel({ t, errs, p, byId, edges, canEdit, canDelete, onClose, onChanged, onSelect }: {
-  t: TreeT; errs: Record<string, string>; p: Person; byId: Map<string, Person>; edges: Edge[]; canEdit: boolean; canDelete: boolean;
+function Panel({ t, errs, p, byId, edges, spouses, canEdit, canDelete, onClose, onChanged, onSelect }: {
+  t: TreeT; errs: Record<string, string>; p: Person; byId: Map<string, Person>; edges: Edge[]; spouses: [string, string][]; canEdit: boolean; canDelete: boolean;
   onClose: () => void; onChanged: () => void; onSelect: (id: string | null) => void;
 }) {
-  const [mode, setMode] = useState<"view" | "edit" | "child" | "sibling" | "parent" | "delete">("view");
+  const [mode, setMode] = useState<"view" | "edit" | "child" | "sibling" | "parent" | "spouse" | "delete">("view");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const parentId = edges.find((e) => e.child === p.id)?.parent ?? null;
   const parent = parentId ? byId.get(parentId) : null;
+  const mates = spouses.filter(([a, b]) => a === p.id || b === p.id).map(([a, b]) => byId.get(a === p.id ? b : a)).filter(Boolean) as Person[];
   const kids = edges.filter((e) => e.parent === p.id).map((e) => byId.get(e.child)).filter(Boolean) as Person[];
   const branchCount = descendantsCount(p.id, edges) + 1;
   const map = mapsLink(p), wa = whatsappLink(p.phone), age = ageOf(p.birth_date, p.death_date);
@@ -282,6 +293,7 @@ function Panel({ t, errs, p, byId, edges, canEdit, canDelete, onClose, onChanged
               <span className="block">{p.address}{map && <> <a className="text-gold underline" href={map} target="_blank" rel="noopener noreferrer">{t.openMap}</a></>}</span>))}
             {!p.address && map && row(t.mapsUrl, <a className="text-gold underline" href={map} target="_blank" rel="noopener noreferrer">{t.openMap}</a>)}
             {p.notes && row(t.notes, <span className="whitespace-pre-wrap">{p.notes}</span>)}
+            {mates.length > 0 && row(t.spouse, <span className="flex flex-wrap gap-x-3">{mates.map((m) => <button key={m.id} className="underline" onClick={() => onSelect(m.id)}>{m.full_name}</button>)}</span>)}
             {parent && row("↑", <button className="underline" onClick={() => onSelect(parent.id)}>{parent.full_name}</button>)}
             {kids.length > 0 && row("↓", <span className="flex flex-wrap gap-x-3">{kids.map((k) => <button key={k.id} className="underline" onClick={() => onSelect(k.id)}>{k.full_name}</button>)}</span>)}
           </dl>
@@ -291,6 +303,7 @@ function Panel({ t, errs, p, byId, edges, canEdit, canDelete, onClose, onChanged
               <button className={btn} onClick={() => setMode("child")}>{t.addChild}</button>
               {parentId && <button className={btn} onClick={() => setMode("sibling")}>{t.addSibling}</button>}
               <button className={btn} onClick={() => setMode("parent")}>{t.addParent}</button>
+              <button className={btn} onClick={() => setMode("spouse")}>{t.addSpouse}</button>
               {canDelete && <button className={`${btn} text-red-700`} onClick={() => setMode("delete")}>{t.delete}</button>}
             </div>
           ) : <p className="mt-4 text-xs opacity-60">{t.readOnly}</p>}
@@ -324,6 +337,7 @@ function Panel({ t, errs, p, byId, edges, canEdit, canDelete, onClose, onChanged
 
       {mode === "child" && <NameForm t={t} errs={errs} submit={(n) => addPerson(p.id, n)} onDone={added} onCancel={() => setMode("view")} />}
       {mode === "sibling" && parentId && <NameForm t={t} errs={errs} submit={(n) => addPerson(parentId, n)} onDone={added} onCancel={() => setMode("view")} />}
+      {mode === "spouse" && <NameForm t={t} errs={errs} submit={(n) => addSpouse(p.id, n)} onDone={added} onCancel={() => setMode("view")} />}
       {mode === "parent" && <NameForm t={t} errs={errs} submit={(n) => addParent(p.id, n)} onDone={added} onCancel={() => setMode("view")} />}
 
       {mode === "delete" && (

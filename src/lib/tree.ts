@@ -7,12 +7,6 @@ export type Edge = { parent: string; child: string; position: number };
 
 export const BOX = { w: 184, h: 76, gapX: 24, gapY: 64 };
 
-export type LaidOut = {
-  nodes: { id: string; x: number; y: number; hasChildren: boolean; collapsed: boolean }[];
-  edges: { from: string; to: string }[];
-  width: number; height: number;
-};
-
 export function childrenMap(edges: Edge[]) {
   const m = new Map<string, string[]>();
   for (const e of [...edges].sort((a, b) => a.position - b.position)) {
@@ -22,30 +16,55 @@ export function childrenMap(edges: Edge[]) {
   return m;
 }
 
-export function roots(people: Person[], edges: Edge[]) {
-  const kids = new Set(edges.map((e) => e.child));
-  return people.filter((p) => !kids.has(p.id)).map((p) => p.id);
+export const SPOUSE_GAP = 28;
+export type LaidOut = {
+  nodes: { id: string; x: number; y: number; hasChildren: boolean; collapsed: boolean; spouseOf?: string }[];
+  edges: { from: string; to: string; cx: number }[];   // cx = centre x of the couple/unit the line starts from
+  links: { a: string; b: string }[];                    // spouse pairs drawn next to each other
+  width: number; height: number;
+};
+
+/** A "married-in" person is the second side of a spouse link and has no parent of their own in the tree. */
+export function marriedIn(people: Person[], edges: Edge[], spouses: [string, string][]) {
+  const ids = new Set(people.map((p) => p.id));
+  const hasParent = new Set(edges.map((e) => e.child));
+  const by = new Map<string, string[]>(); const taken = new Set<string>();
+  for (const [a, b] of spouses) {
+    if (!ids.has(a) || !ids.has(b) || hasParent.has(b) || taken.has(b) || b === a) continue;
+    taken.add(b);
+    if (!by.has(a)) by.set(a, []);
+    by.get(a)!.push(b);
+  }
+  return { by, taken };
 }
 
 /** Top-down tidy layout. x grows left to right; the view mirrors it for right-to-left reading. */
-export function layout(people: Person[], edges: Edge[], collapsed: Set<string>): LaidOut {
-  const kids = childrenMap(edges);
+export function layout(people: Person[], edges: Edge[], collapsed: Set<string>, spouses: [string, string][] = []): LaidOut {
   const ids = new Set(people.map((p) => p.id));
+  const { by, taken } = marriedIn(people, edges, spouses);
+  const partner = new Map<string, string>();
+  for (const [a, list] of by) for (const b of list) partner.set(b, a);
+  // children of a married-in person belong to the partner who is in the tree
+  const kids = childrenMap(edges.map((e) => ({ ...e, parent: partner.get(e.parent) ?? e.parent })));
+  const unit = (id: string) => [id, ...(by.get(id) ?? [])];
+  const unitW = (id: string) => unit(id).length * BOX.w + (unit(id).length - 1) * SPOUSE_GAP;
+
   const widths = new Map<string, number>();
   const seen = new Set<string>();
   const measure = (id: string): number => {
     seen.add(id);
     const ch = collapsed.has(id) ? [] : (kids.get(id) ?? []).filter((c) => ids.has(c) && !seen.has(c));
-    const w = ch.length ? Math.max(BOX.w, ch.reduce((a, c) => a + measure(c), 0) + BOX.gapX * (ch.length - 1)) : BOX.w;
+    const w = ch.length ? Math.max(unitW(id), ch.reduce((a, c) => a + measure(c), 0) + BOX.gapX * (ch.length - 1)) : unitW(id);
     widths.set(id, w);
     return w;
   };
-  const rs = roots(people, edges);
-  seen.clear();
+  const hasParent = new Set(edges.map((e) => e.child));
+  const rs = people.filter((p) => !hasParent.has(p.id) && !taken.has(p.id)).map((p) => p.id);
   rs.forEach(measure);
 
   const nodes: LaidOut["nodes"] = [];
   const out: LaidOut["edges"] = [];
+  const links: LaidOut["links"] = [];
   let maxY = 0;
   const placed = new Set<string>();
   const place = (id: string, left: number, depth: number) => {
@@ -55,16 +74,20 @@ export function layout(people: Person[], edges: Edge[], collapsed: Set<string>):
     maxY = Math.max(maxY, y + BOX.h);
     const all = (kids.get(id) ?? []).filter((c) => ids.has(c));
     const isCollapsed = collapsed.has(id) && all.length > 0;
-    nodes.push({ id, x: left + (w - BOX.w) / 2, y, hasChildren: all.length > 0, collapsed: isCollapsed });
+    const members = unit(id), uw = unitW(id), ux = left + (w - uw) / 2;
+    members.forEach((m, i) => {
+      nodes.push({ id: m, x: ux + i * (BOX.w + SPOUSE_GAP), y, hasChildren: i === 0 && all.length > 0, collapsed: i === 0 && isCollapsed, spouseOf: i === 0 ? undefined : id });
+      if (i > 0) links.push({ a: members[i - 1], b: m });
+    });
     if (isCollapsed) return;
     const ch = all.filter((c) => !placed.has(c));
     const total = ch.reduce((a, c) => a + widths.get(c)!, 0) + BOX.gapX * Math.max(0, ch.length - 1);
     let x = left + (w - total) / 2;
-    for (const c of ch) { out.push({ from: id, to: c }); place(c, x, depth + 1); x += widths.get(c)! + BOX.gapX; }
+    for (const c of ch) { out.push({ from: id, to: c, cx: ux + uw / 2 }); place(c, x, depth + 1); x += widths.get(c)! + BOX.gapX; }
   };
   let x0 = 0;
   for (const r of rs) { place(r, x0, 0); x0 += widths.get(r)! + BOX.gapX * 3; }
-  return { nodes, edges: out, width: Math.max(0, x0 - BOX.gapX * 3), height: maxY };
+  return { nodes, edges: out, links, width: Math.max(0, x0 - BOX.gapX * 3), height: maxY };
 }
 
 export function descendantsCount(id: string, edges: Edge[]) {

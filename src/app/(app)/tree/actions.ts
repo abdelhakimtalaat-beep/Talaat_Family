@@ -38,6 +38,18 @@ export async function addParent(childId: string, name: string): Promise<Result> 
   return { id: data as string };
 }
 
+export async function addSpouse(personId: string, name: string): Promise<Result> {
+  const s = await need("update");
+  if (!s) return { error: "forbidden" };
+  const v = validatePerson({ full_name: name });
+  if (!v.ok) return { error: v.error };
+  if (!UUID.test(personId)) return { error: "generic" };
+  const { data, error } = await s.supabase.rpc("add_tree_spouse", { p_person: personId, p_name: v.value.full_name });
+  if (error) return { error: "generic" };
+  done();
+  return { id: data as string };
+}
+
 export async function updatePerson(id: string, raw: Record<string, string>): Promise<Result> {
   const s = await need("update");
   if (!s) return { error: "forbidden" };
