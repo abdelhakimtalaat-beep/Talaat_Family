@@ -24,6 +24,7 @@ export const FOLDER_TREE: { key: string; name: string; parent?: string }[] = [
   { key: "villa_receipts", name: "Receipts", parent: "villa" },
   { key: "villa_documents", name: "Documents", parent: "villa" },
   { key: "villa_drawings", name: "Drawings", parent: "villa" },
+  { key: "profiles", name: "Profile Photos", parent: "root" },
   { key: "backups", name: "Backups", parent: "root" },
 ];
 
@@ -33,6 +34,7 @@ export const UPLOAD_TARGETS: Record<string, Module[]> = {
   photos: ["photos"],
   events: ["photos", "calendar"],
   albums: ["photos"],
+  profiles: ["tree", "directory"],
   villa_documents: ["villa"],
   villa_drawings: ["villa"],
   villa_exterior: ["villa"],
@@ -70,8 +72,8 @@ async function markNeedsReconnect(message: string) {
 // ---------- OAuth ----------
 export function buildAuthUrl(state: string) {
   const p = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI!,
+    client_id: process.env.GOOGLE_CLIENT_ID!.trim(),
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI!.trim(),
     response_type: "code",
     scope: SCOPE,
     access_type: "offline",   // needed to receive a refresh token
@@ -87,8 +89,8 @@ async function tokenRequest(body: Record<string, string>) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id: process.env.GOOGLE_CLIENT_ID!.trim(),
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!.trim(),
       ...body,
     }),
   });
@@ -104,7 +106,7 @@ async function tokenRequest(body: Record<string, string>) {
 }
 
 export async function exchangeCode(code: string) {
-  return tokenRequest({ code, grant_type: "authorization_code", redirect_uri: process.env.GOOGLE_REDIRECT_URI! });
+  return tokenRequest({ code, grant_type: "authorization_code", redirect_uri: process.env.GOOGLE_REDIRECT_URI!.trim() });
 }
 
 // Short-lived access token cache (per server instance). Falls back to a refresh when expired.

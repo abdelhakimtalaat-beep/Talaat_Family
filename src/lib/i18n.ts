@@ -43,6 +43,26 @@ export const dict = {
         register_failed: "تم الرفع لكن تعذر تسجيل الملف.", invalid: "تحقق من الحقول المطلوبة.",
       },
     },
+    tree: {
+      title: "شجرة العائلة", search: "بحث عن شخص", addRoot: "إضافة شخص", noPeople: "الشجرة فارغة. ابدأ بإضافة أول شخص.",
+      zoomIn: "تكبير", zoomOut: "تصغير", fit: "ملاءمة الشاشة", expand: "فتح الفرع", collapse: "طي الفرع",
+      name: "الاسم", occupation: "المهنة", birth: "تاريخ الميلاد", death: "تاريخ الوفاة", phone: "رقم التليفون",
+      address: "العنوان", mapsUrl: "رابط العنوان على خرائط جوجل", mapsHint: "اختياري. إن تركته فارغًا يُبنى الرابط من العنوان.",
+      notes: "ملاحظات", openMap: "فتح في خرائط جوجل", call: "اتصال", whatsapp: "واتساب", age: "العمر", years: "سنة",
+      edit: "تعديل", save: "حفظ", saving: "جارٍ الحفظ…", cancel: "إلغاء", close: "إغلاق",
+      addChild: "إضافة ابن/ابنة", addSibling: "إضافة أخ/أخت", addParent: "إضافة أب/أم", newName: "اسم الشخص الجديد", add: "إضافة",
+      photo: "الصورة", changePhoto: "تغيير الصورة", removePhoto: "حذف الصورة", uploading: "جارٍ رفع الصورة…",
+      delete: "حذف", deleteConfirm: "حذف %s؟", deleteBranch: "حذف الفرع كله (%n أشخاص)", deleteOnly: "حذف هذا الشخص فقط (ينتقل أبناؤه للأب)",
+      deleteSure: "تأكيد الحذف", empty: "غير مسجل", readOnly: "لديك صلاحية العرض فقط.",
+      errors: {
+        generic: "حدث خطأ، حاول مرة أخرى.", forbidden: "ليست لديك صلاحية.", name_required: "الاسم مطلوب.",
+        bad_date: "تحقق من التواريخ.", bad_url: "الرابط يجب أن يبدأ بـ https://", bad_phone: "رقم التليفون غير صحيح.",
+        linked: "لا يمكن الحذف لأن مستندات مرتبطة بهذا الشخص. احذف الربط أولًا.",
+        drive_unavailable: "تخزين Google Drive غير متاح الآن.", needs_reconnect: "يلزم إعادة ربط Google Drive من الإعدادات.",
+        type_not_allowed: "نوع الملف غير مسموح.", upload_failed: "فشل رفع الصورة.", register_failed: "تم الرفع لكن تعذر تسجيل الملف.",
+        too_large: "الصورة كبيرة جدًا.", forbidden_upload: "ليست لديك صلاحية رفع الصور.",
+      },
+    },
     drive: {
       title: "تخزين الملفات (Google Drive)", account: "الحساب المرتبط", status: "الحالة",
       connected: "متصل", disconnected: "غير متصل", needs_reconnect: "يلزم إعادة الربط",
@@ -53,6 +73,7 @@ export const dict = {
       msg: {
         connected: "تم ربط الحساب وإنشاء المجلدات بنجاح.", denied: "تم إلغاء الموافقة من جوجل.",
         no_refresh_token: "لم تُرسل جوجل رمز التحديث. أزل صلاحية التطبيق من حساب جوجل ثم أعد المحاولة.",
+        not_configured: "إعدادات Google غير مكتملة في Vercel (GOOGLE_CLIENT_ID أو GOOGLE_CLIENT_SECRET أو GOOGLE_REDIRECT_URI). أضفها ثم أعد النشر.",
         state_error: "فشل التحقق الأمني. أعد المحاولة.", error: "حدث خطأ أثناء الربط.", folders: "تم فحص المجلدات.",
       },
     },
@@ -101,6 +122,26 @@ export const dict = {
         register_failed: "Uploaded, but the file could not be recorded.", invalid: "Check the required fields.",
       },
     },
+    tree: {
+      title: "Family Tree", search: "Find a person", addRoot: "Add person", noPeople: "The tree is empty. Add the first person.",
+      zoomIn: "Zoom in", zoomOut: "Zoom out", fit: "Fit to screen", expand: "Expand branch", collapse: "Collapse branch",
+      name: "Name", occupation: "Occupation", birth: "Date of birth", death: "Date of death", phone: "Phone",
+      address: "Address", mapsUrl: "Google Maps link", mapsHint: "Optional. If empty, the link is built from the address.",
+      notes: "Notes", openMap: "Open in Google Maps", call: "Call", whatsapp: "WhatsApp", age: "Age", years: "years",
+      edit: "Edit", save: "Save", saving: "Saving…", cancel: "Cancel", close: "Close",
+      addChild: "Add child", addSibling: "Add sibling", addParent: "Add parent", newName: "New person's name", add: "Add",
+      photo: "Photo", changePhoto: "Change photo", removePhoto: "Remove photo", uploading: "Uploading photo…",
+      delete: "Delete", deleteConfirm: "Delete %s?", deleteBranch: "Delete the whole branch (%n people)", deleteOnly: "Delete only this person (children move up to the parent)",
+      deleteSure: "Confirm delete", empty: "Not recorded", readOnly: "You have view-only access.",
+      errors: {
+        generic: "Something went wrong, try again.", forbidden: "You do not have permission.", name_required: "Name is required.",
+        bad_date: "Check the dates.", bad_url: "The link must start with https://", bad_phone: "Invalid phone number.",
+        linked: "Cannot delete: documents are linked to this person. Unlink them first.",
+        drive_unavailable: "Google Drive storage is unavailable right now.", needs_reconnect: "Google Drive must be reconnected in Settings.",
+        type_not_allowed: "File type not allowed.", upload_failed: "Photo upload failed.", register_failed: "Uploaded, but the file could not be recorded.",
+        too_large: "The photo is too large.", forbidden_upload: "You may not upload photos.",
+      },
+    },
     drive: {
       title: "File storage (Google Drive)", account: "Linked account", status: "Status",
       connected: "Connected", disconnected: "Not connected", needs_reconnect: "Reconnect required",
@@ -111,6 +152,7 @@ export const dict = {
       msg: {
         connected: "Account connected and folders created.", denied: "Google consent was cancelled.",
         no_refresh_token: "Google sent no refresh token. Remove the app's access in your Google account and retry.",
+        not_configured: "Google settings are incomplete in Vercel (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or GOOGLE_REDIRECT_URI). Add them and redeploy.",
         state_error: "Security check failed. Try again.", error: "Something went wrong while connecting.", folders: "Folders checked.",
       },
     },
@@ -121,4 +163,5 @@ export type Dict = (typeof dict)["ar"];
 /** Widens literal string types so Arabic and English dictionaries are assignable to the same prop type. */
 export type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
 export type DocsT = Widen<(typeof dict)["ar"]["docs"]>;
+export type TreeT = Widen<(typeof dict)["ar"]["tree"]>;
 export type VillaT = Widen<(typeof dict)["ar"]["villa"]>;

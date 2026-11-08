@@ -107,3 +107,7 @@ Run `supabase/migrations/0006_backup_status.sql`. Set `CRON_SECRET` (random, 16+
 ## Verification
 
 The workspace this was written in had no network, so `npm install`, `next build` and the SQL migrations were **not run**. Only the finance engine was exercised (via Node type-stripping): the brief's 30,000 EGP example, rounding, percentage validation, ledger and settlement all pass. Expect to fix small type or syntax errors on first build, and run the SQL against a fresh Supabase project to confirm it applies cleanly.
+
+## Family tree
+
+Run `supabase/migrations/0008_family_tree.sql` in the Supabase SQL editor, then (once) `supabase/seed/family_tree_hassan.sql` to load the tree drawn in the original chart (skipped if real people already exist). Profile photos are stored in Google Drive (`Profile Photos` folder): connect Drive, then press "إنشاء/فحص المجلدات" in Settings once so the new folder is created.

@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // Access = the user can see (through Row Level Security) a record that references this file,
   // or they uploaded it themselves and have not attached it yet.
   const sb = s.supabase;
-  const { data: file } = await sb.from("google_drive_files").select("id, drive_file_id, name, mime_type, uploaded_by").eq("id", id).maybeSingle();
+  const { data: file } = await sb.from("google_drive_files").select("id, drive_file_id, name, mime_type, uploaded_by, folder_path").eq("id", id).maybeSingle();
   if (!file) return new Response("Not found", { status: 404 });
 
   let allowed = file.uploaded_by === s.profile.id;
@@ -24,6 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       sb.from("document_versions").select("id").eq("file_id", id).limit(1),
       sb.from("photos").select("id").eq("file_id", id).limit(1),
       sb.from("expenses").select("id").eq("receipt_file_id", id).limit(1),
+      sb.from("family_members").select("id").eq("photo_drive_file_id", id).limit(1),
     ]);
     allowed = checks.some((c) => (c.data?.length ?? 0) > 0);
   }
@@ -37,7 +38,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const headers = new Headers({
       "Content-Type": file.mime_type ?? "application/octet-stream",
       "Content-Disposition": `${download ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(file.name)}`,
-      "Cache-Control": "private, no-store",
+      // Profile photos are small and shown many times; other files are never cached.
+      "Cache-Control": file.folder_path === "profiles" ? "private, max-age=3600" : "private, no-store",
       "X-Content-Type-Options": "nosniff",
     });
     for (const h of ["content-length", "content-range", "accept-ranges"]) {
