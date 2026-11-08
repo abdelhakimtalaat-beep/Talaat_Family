@@ -5,7 +5,7 @@ export type Person = {
 };
 export type Edge = { parent: string; child: string; position: number };
 
-export const BOX = { w: 156, h: 64, gapX: 20, gapY: 48 };
+export const BOX = { w: 184, h: 76, gapX: 24, gapY: 64 };
 
 export type LaidOut = {
   nodes: { id: string; x: number; y: number; hasChildren: boolean; collapsed: boolean }[];

@@ -32,8 +32,8 @@ const ageOf = (b: string | null, d: string | null) => {
 function Avatar({ p, size }: { p: Person; size: number }) {
   return p.photo
     // eslint-disable-next-line @next/next/no-img-element
-    ? <img src={p.photo} alt="" width={size} height={size} loading="lazy" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
-    : <span className="grid shrink-0 place-items-center rounded-full bg-mist font-bold text-navy" style={{ width: size, height: size }}>{p.full_name.trim().charAt(0)}</span>;
+    ? <img src={p.photo} alt="" width={size} height={size} loading="lazy" className="shrink-0 rounded-full object-cover ring-2 ring-white shadow" style={{ width: size, height: size }} />
+    : <span className="grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-mist to-beige font-bold text-navy ring-2 ring-white shadow" style={{ width: size, height: size }}>{p.full_name.trim().charAt(0)}</span>;
 }
 
 export default function TreeView({ t, locale, people, edges, canEdit, canDelete }: {
@@ -50,6 +50,8 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
   const [q, setQ] = useState("");
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const wrap = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const justDragged = useRef(false);
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null);
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
@@ -74,7 +76,27 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
     setSel(id); setQ("");
   }
 
-  const zoom = (f: number) => setView((v) => ({ ...v, k: Math.min(2.5, Math.max(0.2, v.k * f)) }));
+  /** Zooms around a point (container coordinates); defaults to the centre of the canvas. */
+  function zoom(f: number, cx?: number, cy?: number) {
+    const el = wrap.current;
+    const ox = cx ?? (el ? el.clientWidth / 2 : 0), oy = cy ?? (el ? el.clientHeight / 2 : 0);
+    setView((v) => {
+      const k = Math.min(2.5, Math.max(0.15, v.k * f)), r = k / v.k;
+      return { k, x: ox - (ox - v.x) * r, y: oy - (oy - v.y) * r };
+    });
+  }
+  // Ctrl/Cmd + mouse wheel zooms. Registered natively (non-passive) so the browser page does not zoom too.
+  useEffect(() => {
+    const el = wrap.current; if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
   const person = sel ? byId.get(sel) ?? null : null;
   useEffect(() => { if (sel && !byId.has(sel)) setSel(null); }, [byId, sel]);
 
@@ -93,11 +115,22 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
         {canEdit && <AddRoot t={t} errs={errs} onDone={(id) => { refresh(); if (id) setSel(id); }} />}
       </div>
 
-      <div ref={wrap} className="relative h-[70vh] touch-none select-none overflow-hidden rounded-2xl border border-mist bg-white"
-        onWheel={(e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoom(e.deltaY < 0 ? 1.1 : 0.9); } }}
-        onPointerDown={(e) => { if ((e.target as HTMLElement).closest("[data-node]")) return; drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
-        onPointerMove={(e) => { const d = drag.current; if (!d) return; setView((v) => ({ ...v, x: d.vx + e.clientX - d.x, y: d.vy + e.clientY - d.y })); }}
-        onPointerUp={() => { drag.current = null; }}>
+      <div ref={wrap} className={`relative h-[72vh] touch-none select-none overflow-hidden rounded-3xl border border-mist ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+        style={{ backgroundColor: "#faf7f0", backgroundImage: "radial-gradient(#d8cfb8 1px, transparent 1px)", backgroundSize: "22px 22px" }}
+        onPointerDown={(e) => {
+          if (e.button !== 0 || (e.target as HTMLElement).closest("button[data-stop]")) return;
+          drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false };
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current; if (!d) return;
+          const dx = e.clientX - d.x, dy = e.clientY - d.y;
+          if (!d.moved && Math.hypot(dx, dy) < 5) return;
+          if (!d.moved) { d.moved = true; setDragging(true); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }
+          setView((v) => ({ ...v, x: d.vx + dx, y: d.vy + dy }));
+        }}
+        onPointerUp={() => { justDragged.current = !!drag.current?.moved; drag.current = null; setDragging(false); setTimeout(() => { justDragged.current = false; }, 0); }}
+        onPointerCancel={() => { drag.current = null; setDragging(false); }}
+        onClickCapture={(e) => { if (justDragged.current) { e.stopPropagation(); e.preventDefault(); } }}>
         {people.length === 0 ? (
           <p className="grid h-full place-items-center p-6 text-center opacity-70">{t.noPeople}</p>
         ) : (
@@ -106,7 +139,7 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
               {L.edges.map((e) => {
                 const a = pos.get(e.from)!, b = pos.get(e.to)!;
                 const x1 = px(a.x) + BOX.w / 2, y1 = py(a.y) + BOX.h, x2 = px(b.x) + BOX.w / 2, y2 = py(b.y), ym = y1 + BOX.gapY / 2;
-                return <path key={e.from + e.to} d={`M${x1} ${y1}V${ym}H${x2}V${y2}`} fill="none" stroke="#c9b98f" strokeWidth={1.5} />;
+                return <path key={e.from + e.to} d={`M${x1} ${y1}C${x1} ${ym},${x2} ${ym},${x2} ${y2}`} fill="none" stroke="#c4a35a" strokeOpacity={0.55} strokeWidth={2} strokeLinecap="round" />;
               })}
             </svg>
             {L.nodes.map((n) => {
@@ -115,25 +148,26 @@ export default function TreeView({ t, locale, people, edges, canEdit, canDelete 
               return (
                 <div key={n.id} data-node className="absolute" style={{ left: px(n.x), top: py(n.y), width: BOX.w, height: BOX.h }}>
                   <button dir={rtl ? "rtl" : "ltr"} onClick={() => setSel(n.id)}
-                    className={`flex h-full w-full items-center gap-2 rounded-xl border bg-warm px-2 text-start shadow-sm transition ${on ? "border-gold ring-2 ring-gold" : "border-mist hover:border-gold"}`}>
-                    <Avatar p={p} size={36} />
-                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{p.full_name}</span>
-                      {p.occupation && <span className="block truncate text-xs opacity-60">{p.occupation}</span>}</span>
+                    className={`group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-2xl bg-white/90 px-3 text-start shadow-[0_6px_18px_-8px_rgba(20,30,60,0.35)] ring-1 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-8px_rgba(20,30,60,0.45)] ${on ? "ring-2 ring-gold" : "ring-mist"}`}>
+                    <span className="absolute inset-y-0 start-0 w-1.5" style={{ background: ["#1f3a5f", "#c4a35a", "#4f7a6a", "#a35d5d", "#6b5b95"][(n.y / (BOX.h + BOX.gapY)) % 5] }} />
+                    <span className="ms-1.5"><Avatar p={p} size={44} /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-[15px] font-bold leading-tight">{p.full_name}</span>
+                      <span className="mt-0.5 block truncate text-xs opacity-60">{p.occupation || " "}</span></span>
                   </button>
                   {n.hasChildren && (
                     <button aria-label={n.collapsed ? t.expand : t.collapse} title={n.collapsed ? t.expand : t.collapse}
                       onClick={() => setCollapsed((c) => { const s = new Set(c); if (s.has(n.id)) s.delete(n.id); else s.add(n.id); return s; })}
-                      className="absolute -bottom-3 left-1/2 grid h-6 w-6 -translate-x-1/2 place-items-center rounded-full border border-gold bg-white text-xs text-navy">{n.collapsed ? "+" : "−"}</button>
+                      data-stop className="absolute -bottom-3 left-1/2 grid h-6 w-6 -translate-x-1/2 place-items-center rounded-full bg-navy text-xs font-bold text-beige shadow">{n.collapsed ? "+" : "−"}</button>
                   )}
                 </div>
               );
             })}
           </div>
         )}
-        <div className="absolute bottom-3 end-3 flex flex-col gap-1">
-          <button className={`${btn} bg-white`} onClick={() => zoom(1.2)} aria-label={t.zoomIn}>＋</button>
-          <button className={`${btn} bg-white`} onClick={() => zoom(0.8)} aria-label={t.zoomOut}>－</button>
-          <button className={`${btn} bg-white`} onClick={fit} aria-label={t.fit}>⤢</button>
+        <div className="absolute bottom-3 end-3 flex flex-col overflow-hidden rounded-2xl bg-white/90 shadow ring-1 ring-mist backdrop-blur">
+          <button data-stop className="px-3.5 py-2 text-lg hover:bg-mist" onClick={() => zoom(1.2)} aria-label={t.zoomIn} title={t.zoomIn}>+</button>
+          <button data-stop className="border-y border-mist px-3.5 py-2 text-lg hover:bg-mist" onClick={() => zoom(1 / 1.2)} aria-label={t.zoomOut} title={t.zoomOut}>−</button>
+          <button data-stop className="px-3.5 py-2 hover:bg-mist" onClick={fit} aria-label={t.fit} title={t.fit}>⤢</button>
         </div>
       </div>
 
